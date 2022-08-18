@@ -1,6 +1,3 @@
-//go:build wireguard
-// +build wireguard
-
 package wireguard
 
 import (
@@ -10,7 +7,12 @@ import (
 	"os/exec"
 )
 
-func (w *WgProp) CreateTunnelInterface() error {
+type WireguardMac struct {
+	Wgname string `def:"wg0"`
+	Wgpath string `def:"wg0.conf"`
+}
+
+func (w WireguardMac) CreateTunnelInterface() error {
 
 	state, err := w.GetInterfaceStatus(w.Wgname)
 	if state == 0 {
@@ -24,7 +26,7 @@ func (w *WgProp) CreateTunnelInterface() error {
 	return err
 }
 
-func (w *WgProp) DeleteTunnelInterface(intfName string) error {
+func (w WireguardMac) DeleteTunnelInterface(intfName string) error {
 	exePath := "wg-quick"
 	_, err := exec.Command(exePath, "down", intfName).Output()
 	if err != nil {
@@ -33,7 +35,7 @@ func (w *WgProp) DeleteTunnelInterface(intfName string) error {
 	return err
 }
 
-func (w *WgProp) GetInterfaceStatus(intfName string) (int, error) {
+func (w WireguardMac) GetInterfaceStatus(intfName string) (int, error) {
 
 	interfaces, err := net.Interfaces()
 

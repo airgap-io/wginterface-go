@@ -1,6 +1,3 @@
-//go:build wireguard
-// +build wireguard
-
 package wireguard
 
 import (
@@ -11,9 +8,13 @@ import (
 	"strings"
 	"syscall"
 
-	"airgap.io/wginterface/pkg/wireguard"
 	"golang.org/x/sys/windows"
 )
+
+type WireguardWindows struct {
+	Wgname string `def:"wg0"`
+	Wgpath string `def:"wg0.conf"`
+}
 
 func runMeElevated() {
 	verb := "runas"
@@ -43,7 +44,7 @@ func amAdmin() bool {
 	fmt.Println("admin yes")
 	return true
 }
-func (w *WgProp) CreateTunnelInterface() error {
+func (w WireguardWindows) CreateTunnelInterface() error {
 	state, _ := w.GetInterfaceStatus(w.Wgname)
 	if state == 0 {
 		return fmt.Errorf("Interface already running for %s", w.Wgname)
@@ -59,7 +60,7 @@ func (w *WgProp) CreateTunnelInterface() error {
 	return err
 }
 
-func (w *WgProp) DeleteTunnelInterface(intfName string) error {
+func (w WireguardWindows) DeleteTunnelInterface(intfName string) error {
 
 	state, _ := w.GetInterfaceStatus(intfName)
 	if state == 1 {
@@ -76,7 +77,7 @@ func (w *WgProp) DeleteTunnelInterface(intfName string) error {
 	return err
 }
 
-func (w *WgProp) GetInterfaceStatus(intfName string) (int, error) {
+func (w WireguardWindows) GetInterfaceStatus(intfName string) (int, error) {
 
 	interfaces, err := net.Interfaces()
 
