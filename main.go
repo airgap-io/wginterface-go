@@ -31,11 +31,22 @@ func main() {
 		fw.Port, _ = strconv.Atoi(os.Args[4])
 		fw.AddNetworkPolicy(fw.Name, fw.Action, fw.Protocol, fw.Port)
 		time.Sleep(10 * time.Second)
-		b, _ := fw.CheckRuleStatus(fw.Name)
+		b, _ := fw.CheckRuleStatus(fw.Name, fw.Action, fw.Protocol, fw.Port)
 		fmt.Println("status", b)
-		b, _ = fw.DeleteNetworkPolicy(fw.Name)
+		b, _ = fw.DeleteNetworkPolicy(fw.Name, fw.Action, fw.Protocol, fw.Port)
 		fmt.Println("delete", b)
-
+	} else if osName == "darwin" {
+		fw := firewall.FireWallMac{}
+		fw.Name = os.Args[1]
+		fw.Action = os.Args[2]
+		fw.Protocol = os.Args[3]
+		fw.Port, _ = strconv.Atoi(os.Args[4])
+		fw.AddNetworkPolicy(fw.Name, fw.Action, fw.Protocol, fw.Port)
+		time.Sleep(10 * time.Second)
+		b, _ := fw.CheckRuleStatus(fw.Name, fw.Action, fw.Protocol, fw.Port)
+		fmt.Println("status", b)
+		b, _ = fw.DeleteNetworkPolicy(fw.Name, fw.Action, fw.Protocol, fw.Port)
+		fmt.Println("delete", b)
 	}
 	//wireguard
 	{
