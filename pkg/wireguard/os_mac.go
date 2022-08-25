@@ -14,12 +14,12 @@ type WireguardMac struct {
 
 func (w WireguardMac) CreateTunnelInterface() error {
 
-	state, err := w.GetInterfaceStatus(w.Wgname)
+	state, _ := w.GetInterfaceStatus(w.Wgname)
 	if state == 0 {
-		return err
+		return fmt.Errorf("interface already running for %s", w.Wgname)
 	}
 	exePath := "wg-quick"
-	_, err = exec.Command(exePath, "up", w.Wgname).Output()
+	_, err := exec.Command(exePath, "up", w.Wgname).Output()
 	if err != nil {
 		fmt.Println("Error: ", err)
 	}
@@ -27,6 +27,10 @@ func (w WireguardMac) CreateTunnelInterface() error {
 }
 
 func (w WireguardMac) DeleteTunnelInterface(intfName string) error {
+	state, _ := w.GetInterfaceStatus(intfName)
+	if state == 1 {
+		return fmt.Errorf("interface already stopped for %s", intfName)
+	}
 	exePath := "wg-quick"
 	_, err := exec.Command(exePath, "down", intfName).Output()
 	if err != nil {
@@ -37,6 +41,7 @@ func (w WireguardMac) DeleteTunnelInterface(intfName string) error {
 
 func (w WireguardMac) GetInterfaceStatus(intfName string) (int, error) {
 
+	//get all running interfaces
 	interfaces, err := net.Interfaces()
 
 	if err != nil {
@@ -45,8 +50,8 @@ func (w WireguardMac) GetInterfaceStatus(intfName string) (int, error) {
 	}
 	for _, i := range interfaces {
 		if i.Name == intfName {
-			return 0, fmt.Errorf("Interface already running for %s", intfName)
+			return 0, err
 		}
 	}
-	return 1, exec.ErrNotFound
+	return 1, err
 }

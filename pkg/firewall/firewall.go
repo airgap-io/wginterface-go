@@ -9,6 +9,7 @@ import (
 	"strings"
 )
 
+// interface functions to add/delete/check network policies
 type Firewall interface {
 	AddNetworkPolicy(name string, action string, protocol string, port int) error
 	DeleteNetworkPolicy(name string, action string, protocol string, port int) (bool, error)
@@ -16,6 +17,9 @@ type Firewall interface {
 	FlushNetworkPolicies() (bool, error)
 }
 
+//*** functions are common to both windows and mac -START ***//
+
+//to read airgap.conf file to get the inbund rules
 func readFile(conffile string) []string {
 	readFile, err := os.Open(conffile)
 	if err != nil {
@@ -33,6 +37,7 @@ func readFile(conffile string) []string {
 	return s
 }
 
+//to check the existence of a given policy
 func existenceOfPolicy(conffile string, command string) bool {
 	strArr := readFile(conffile)
 	for _, str1 := range strArr {
@@ -43,6 +48,7 @@ func existenceOfPolicy(conffile string, command string) bool {
 	return false
 }
 
+//to create a new airgap.conf file - only first time
 func createNewFile(conffile string) error {
 	myfile, err := os.Create(conffile)
 	if err != nil {
@@ -51,6 +57,8 @@ func createNewFile(conffile string) error {
 	myfile.Close()
 	return err
 }
+
+// to append a given inbound rule in airgap.conf
 func appendAPolicy(conffile string, command string) error {
 	f, err := os.OpenFile(conffile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 
@@ -66,6 +74,7 @@ func appendAPolicy(conffile string, command string) error {
 	return exec.ErrNotFound
 }
 
+// to remove a given inbound rule from airgap.conf
 func removeAPolicy(conffile string, command string) (bool, error) {
 	f, err := os.Open(conffile)
 	if err != nil {
@@ -100,6 +109,7 @@ func removeAPolicy(conffile string, command string) (bool, error) {
 	return true, exec.ErrNotFound
 }
 
+// to remove all inbound rules from airgap.conf
 func removeAllAirgapPolicies(conffile string) (bool, error) {
 	file, err := os.Open(conffile)
 	if err != nil {
@@ -136,3 +146,5 @@ func removeAllAirgapPolicies(conffile string) (bool, error) {
 	}
 	return true, exec.ErrNotFound
 }
+
+//*** functions are common to both windows and mac -END ***//

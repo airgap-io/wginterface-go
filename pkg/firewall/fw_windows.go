@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"os/user"
 	"strconv"
 	"strings"
 )
@@ -20,6 +19,7 @@ type FireWallWindows struct {
 
 var airgapWinConf string = ""
 
+//to add / remove inbound rule from firewall
 func addOrRemovePolicy(command string) (bool, error) {
 	_, err := exec.Command("powershell", command).Output()
 	if err != nil {
@@ -28,6 +28,7 @@ func addOrRemovePolicy(command string) (bool, error) {
 	return true, err
 }
 
+//get the inblund rule from the command of airgap.conf
 func getRuleNameFromCommand(command string) (string, error) {
 	name := "name="
 	dir := " dir="
@@ -40,14 +41,26 @@ func getRuleNameFromCommand(command string) (string, error) {
 	return "", fmt.Errorf("policy name not found in command")
 }
 
-func setAirgapConfPath() {
-	u, _ := user.Current()
-	airgapWinConf = u.HomeDir + "\\airgap\\airgap.conf"
+//to copy the inbound rules in file(airgap.conf)
+func setAirgapConfPath() bool {
+	for _, element := range os.Environ() {
+		variable := strings.Split(element, "=")
+		if variable[0] == "ProgramFiles" {
+			airgapWinConf = variable[1] + "\\Airgap\\airgap.conf"
+			return true
+		}
+	}
+	return false
 }
 
+//to add a new inbound rule in airgap.conf file
 func (f *FireWallWindows) AddNetworkPolicy(name string, action string, protocol string, port int) error {
-	setAirgapConfPath()
+	if !setAirgapConfPath() {
+		return fmt.Errorf("environment variable - ProgramFiles is not present")
+	}
 	var command [2]string
+
+	//build array of 2 strings
 	if action == "allow" {
 		command[0] = "netsh advfirewall firewall add rule name=" + "\"" + f.Name + "\"" + " dir=in action=" + action + " protocol=" + f.Protocol + " localport=" + strconv.Itoa(f.Port)
 		command[1] = "netsh advfirewall firewall add rule name=" + "\"" + f.Name + "\"" + " dir=in action=" + "block" + " protocol=" + f.Protocol + " localport=" + strconv.Itoa(f.Port)
@@ -55,19 +68,21 @@ func (f *FireWallWindows) AddNetworkPolicy(name string, action string, protocol 
 		command[0] = "netsh advfirewall firewall add rule name=" + "\"" + f.Name + "\"" + " dir=in action=" + "block" + " protocol=" + f.Protocol + " localport=" + strconv.Itoa(f.Port)
 		command[1] = "netsh advfirewall firewall add rule name=" + "\"" + f.Name + "\"" + " dir=in action=" + action + " protocol=" + f.Protocol + " localport=" + strconv.Itoa(f.Port)
 	}
-
+	//if file does not exists create a new file in given path
 	if _, err := os.Stat(airgapWinConf); errors.Is(err, os.ErrNotExist) {
 		err := createNewFile(airgapWinConf)
 		if err != nil {
 			return fmt.Errorf("airgap.conf file creation issue")
 		}
 	}
+	//if command[1] is already added, we need to remove to add command[0]
 	if existenceOfPolicy(airgapWinConf, command[1]) {
 		b, _ := addOrRemovePolicy(command[1])
 		if b {
 			removeAPolicy(airgapWinConf, command[1])
 		}
 	}
+	// check for the existence of command[0], to append a inbound rule
 	if !existenceOfPolicy(airgapWinConf, command[0]) {
 		b, err := addOrRemovePolicy(command[0])
 		if b {
@@ -80,8 +95,12 @@ func (f *FireWallWindows) AddNetworkPolicy(name string, action string, protocol 
 	return fmt.Errorf("command is already present")
 }
 
+//to check a status of a given inbound rule
 func (f *FireWallWindows) CheckRuleStatus(name string, action string, protocol string, port int) (bool, error) {
-	setAirgapConfPath()
+	if !setAirgapConfPath() {
+		return false, fmt.Errorf("environment variable - ProgramFiles is not present")
+	}
+	//generate the command to check the status
 	command := "netsh advfirewall firewall show rule name=" + "\"" + name + "\""
 	_, err := exec.Command("powershell", command).Output()
 	if err != nil {
@@ -90,14 +109,19 @@ func (f *FireWallWindows) CheckRuleStatus(name string, action string, protocol s
 	return true, exec.ErrNotFound
 }
 
+//to delete a inbound rule
 func (f *FireWallWindows) DeleteNetworkPolicy(name string, action string, protocol string, port int) (bool, error) {
-	setAirgapConfPath()
+	if !setAirgapConfPath() {
+		return false, fmt.Errorf("environment variable - ProgramFiles is not present")
+	}
 	var command string = ""
+	//build a command for allow or block
 	if action == "allow" {
 		command = "netsh advfirewall firewall add rule name=" + "\"" + f.Name + "\"" + " dir=in action=" + action + " protocol=" + f.Protocol + " localport=" + strconv.Itoa(f.Port)
 	} else {
 		command = "netsh advfirewall firewall add rule name=" + "\"" + f.Name + "\"" + " dir=in action=" + "block" + " protocol=" + f.Protocol + " localport=" + strconv.Itoa(f.Port)
 	}
+	//check and remove, if inbound rule exists
 	if existenceOfPolicy(airgapWinConf, command) {
 		commanddel := "netsh advfirewall firewall delete rule name=" + "\"" + f.Name + "\""
 		b, err := addOrRemovePolicy(commanddel)
@@ -111,20 +135,29 @@ func (f *FireWallWindows) DeleteNetworkPolicy(name string, action string, protoc
 	return false, fmt.Errorf("command not found in file")
 }
 
+//to delete all inbound rules
 func (f *FireWallWindows) FlushNetworkPolicies() (bool, error) {
-	setAirgapConfPath()
-	strArr := readFile(airgapWinConf)
 	ret := false
+	if !setAirgapConfPath() {
+		return ret, fmt.Errorf("environment variable - ProgramFiles is not present")
+	}
+	//read and get the existing inbound rules from airgap.conf
+	strArr := readFile(airgapWinConf)
+
 	err := fmt.Errorf("all Policies are removed")
 	for _, command := range strArr {
+		//get the rule name from command
 		rulename, _ := getRuleNameFromCommand(command)
 		if len(rulename) == 0 {
 			continue
 		}
+		//generate command to delete a inbound rule
 		commanddel := "netsh advfirewall firewall delete rule name=" + "\"" + rulename + "\""
+		// remove a rule from firewall
 		b, _ := addOrRemovePolicy(commanddel)
 		if b {
 			ret = true
+			//remove a rule from file
 			removeAPolicy(airgapWinConf, command)
 		} else {
 			err = fmt.Errorf("some commands could not be removed")

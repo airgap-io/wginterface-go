@@ -6,6 +6,7 @@ type Osquery interface {
 	DetectOS() string
 }
 
+//find the OS type
 func DetectOS() string {
 	os := runtime.GOOS
 	switch os {
