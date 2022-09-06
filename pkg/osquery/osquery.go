@@ -2,8 +2,14 @@ package osquery
 
 import "runtime"
 
-type Osquery interface {
-	DetectOS() string
+type OsAirgapQuery interface {
+	GetOSVersion() (string, error)
+	GetInstalledApps() ([]string, error)
+	GetInstalledAntiVirusProducts() ([]string, error)
+	GetActiveDirectories() ([]string, error)
+	GetProtectionStatus() (bool, error)
+	GetFirewallStatus() (bool, error)
+	GetAllowScreenLockStatus() (int, error)
 }
 
 //find the OS type
